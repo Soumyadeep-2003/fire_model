@@ -21,7 +21,7 @@ if __name__ == "__main__":
                 label = detection.cls
                 conf = detection.conf
                 if label == 0 and conf > 0.6:  # Fire detected (class 0)
-                    print("🔥 Fire detected! Notifying Arduino...")
+                    print("Fire detected! Notifying Arduino...")
                     GPIO.output(ARDUINO_SIGNAL_PIN, GPIO.HIGH)
                     time.sleep(2)  # Keep HIGH for 2 seconds
                     GPIO.output(ARDUINO_SIGNAL_PIN, GPIO.LOW)
