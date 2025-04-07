@@ -1,30 +1,32 @@
-import serial
-from ultralytics import YOLO
+import RPi.GPIO as GPIO
 import time
-model = YOLO('best.pt')  # Consider full path
-try:
-    arduino = serial.Serial('/dev/ttyAMA0', 9600, timeout=1)
-    time.sleep(2)  # Allow serial initialization
-except Exception as e:
-    print(f"Serial init error: {e}")
-    exit()
-def detect_fire():
-    try:
-        results = model.predict(source=0, imgsz=640, conf=0.6, show=True)
-        for result in results:
-            for box in result.boxes:
-                if box.cls == 0 and box.conf > 0.6:
-                    try:
-                        arduino.write(b'F')
-                        print("Fire alert sent")
-                    except Exception as e:
-                        print(f"Serial write error: {e}")
-    except Exception as e:
-        print(f"Detection error: {e}")
+from ultralytics import YOLO
+
+# GPIO setup
+ARDUINO_SIGNAL_PIN = 23  # GPIO pin connected to Arduino
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(ARDUINO_SIGNAL_PIN, GPIO.OUT)
+GPIO.output(ARDUINO_SIGNAL_PIN, GPIO.LOW)  # Start with LOW
+
+# Load YOLO model
+model = YOLO('best.pt')  # Replace with your trained model path
+
 if __name__ == "__main__":
     try:
-        while True:
-            detect_fire()
-            time.sleep(0.1)  # Reduce CPU usage
+        # Start prediction from camera
+        results_generator = model.predict(source=0, imgsz=640, conf=0.6, show=True)
+
+        for results in results_generator:
+            for detection in results.boxes:
+                label = detection.cls
+                conf = detection.conf
+                if label == 0 and conf > 0.6:  # Fire detected (class 0)
+                    print("🔥 Fire detected! Notifying Arduino...")
+                    GPIO.output(ARDUINO_SIGNAL_PIN, GPIO.HIGH)
+                    time.sleep(2)  # Keep HIGH for 2 seconds
+                    GPIO.output(ARDUINO_SIGNAL_PIN, GPIO.LOW)
+
     except KeyboardInterrupt:
-        arduino.close()
+        print("Detection stopped.")
+    finally:
+        GPIO.cleanup()
